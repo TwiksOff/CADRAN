@@ -1,0 +1,51 @@
+{
+  "events": [
+    {
+      "id": "mu9geutqmnvgj",
+      "date": "2026-09-20",
+      "s": 675,
+      "e": 870,
+      "title": "",
+      "desc": "",
+      "place": "",
+      "color": "#ff1f14",
+      "done": false
+    }
+  ],
+  "templates": [
+    {
+      "id": "t1",
+      "title": "Réunion",
+      "mins": 60,
+      "color": "#ff1f14",
+      "desc": ""
+    },
+    {
+      "id": "t2",
+      "title": "Travail concentré",
+      "mins": 90,
+      "color": "#4d6bff",
+      "desc": ""
+    },
+    {
+      "id": "t3",
+      "title": "Pause",
+      "mins": 30,
+      "color": "#ffc400",
+      "desc": ""
+    },
+    {
+      "id": "t4",
+      "title": "Sport",
+      "mins": 60,
+      "color": "#33d17a",
+      "desc": ""
+    }
+  ],
+  "settings": {
+    "dayStart": 8,
+    "dayEnd": 20,
+    "snap": 15,
+    "half": true
+  }
+}
