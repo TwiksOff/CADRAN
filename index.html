@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cadran — emploi du temps</title>
+<meta name="description" content="Emploi du temps par blocs : glisser, redimensionner, colorer. Fonctionne hors ligne.">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles-mobile.css"
+      media="(max-width: 767px), (max-height: 430px) and (orientation: landscape) and (pointer: coarse)">
+</head>
+<body>
+
+<a class="skip" href="#canvas">Aller à l'emploi du temps</a>
+
+<!-- ————— Barre de mois ————— -->
+<header class="topbar">
+  <div class="month">
+    <button class="nav" id="prevMonth" aria-label="Mois précédent" title="Mois précédent">‹</button>
+    <h1 id="monthLabel">FEVRIER</h1>
+    <button class="nav" id="nextMonth" aria-label="Mois suivant" title="Mois suivant">›</button>
+  </div>
+  <div class="strip-wrap"><nav class="strip" id="strip" aria-label="Jours du mois"></nav></div>
+  <div class="tools">
+    <div class="search">
+      <input id="search" type="search" placeholder="Rechercher…" aria-label="Rechercher dans les blocs" autocomplete="off">
+    </div>
+    <button class="ghost" id="syncBtn" title="Synchronisation GitHub">
+      <span id="syncDot" class="syncdot"></span><span id="syncLabel">Sync</span>
+    </button>
+    <button class="ghost" id="sendBtn" title="Envoyer l'emploi du temps vers l'iPhone">Envoyer</button>
+    <button class="ghost" id="todayBtn" title="Aujourd'hui (T)">Aujourd'hui</button>
+    <button class="ghost" id="menuBtn" aria-haspopup="true" aria-expanded="false" title="Menu">⋯</button>
+  </div>
+</header>
+
+<!-- ————— Corps ————— -->
+<main class="stage">
+
+  <!-- Colonne emploi du temps -->
+  <section class="col-day" aria-label="Journée">
+    <div class="dayhead">
+      <button class="nav" id="prevDay" aria-label="Jour précédent">‹</button>
+      <div class="dayid">
+        <h2 id="dayName">Jeudi</h2>
+        <p id="dayDate">(25/02)</p>
+      </div>
+      <button class="nav" id="nextDay" aria-label="Jour suivant">›</button>
+      <div class="dayload" id="dayLoad" title="Temps occupé dans la journée"></div>
+    </div>
+
+    <div class="frame">
+      <div class="gutter" id="gutter" aria-hidden="true"></div>
+      <div class="canvas" id="canvas" tabindex="0" role="application"
+           aria-label="Grille horaire. Glissez pour créer un bloc. Flèches pour déplacer, Suppr pour supprimer.">
+        <div class="rules" id="rules"></div>
+        <div class="now" id="nowLine" hidden><span id="nowTag">12:00</span></div>
+        <div class="layer" id="layer"></div>
+        <div class="ghost-block" id="ghost" hidden></div>
+        <p class="empty" id="emptyHint">Glissez ici pour créer un bloc</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Colonne modèles -->
+  <section class="col-lib" aria-label="Modèles">
+    <h2 class="lbl">Modèles</h2>
+    <div class="lib" id="lib"></div>
+    <button class="ghost wide" id="addTemplate" title="Enregistrer le bloc sélectionné comme modèle">+ Modèle</button>
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <!-- Inspecteur -->
+  <aside class="col-insp" aria-label="Propriétés du bloc">
+    <div class="panel">
+      <button type="button" class="sheet-handle" id="sheetClose" aria-label="Fermer le panneau">
+        <span class="grabber" aria-hidden="true"></span><span>Fermer</span>
+      </button>
+      <div class="scroll">
+        <label class="field">
+          <span>Titre</span>
+          <input id="fTitle" type="text" placeholder="Sans titre" maxlength="80" disabled>
+        </label>
+
+        <div class="row2">
+          <label class="field">
+            <span>Début</span>
+            <input id="fStart" type="time" step="300" disabled>
+          </label>
+          <label class="field">
+            <span>Fin</span>
+            <input id="fEnd" type="time" step="300" disabled>
+          </label>
+        </div>
+
+        <div class="chips" id="durChips" role="group" aria-label="Durée rapide"></div>
+
+        <label class="field">
+          <span>Description</span>
+          <textarea id="fDesc" rows="4" placeholder="Notes, lieu, participants…" disabled></textarea>
+        </label>
+
+        <label class="field">
+          <span>Lieu</span>
+          <input id="fPlace" type="text" placeholder="Salle, adresse, lien…" maxlength="80" disabled>
+        </label>
+
+        <fieldset class="field">
+          <legend>Couleur</legend>
+          <div class="swatches" id="swatches" role="radiogroup" aria-label="Couleur du bloc"></div>
+        </fieldset>
+
+        <fieldset class="field" id="repBox">
+          <legend>Répéter</legend>
+          <div class="days" id="repDays" role="group" aria-label="Jours de répétition"></div>
+          <div class="row2">
+            <label class="sub"><span>Pendant</span>
+              <select id="repWeeks" disabled>
+                <option value="2">2 semaines</option>
+                <option value="4" selected>4 semaines</option>
+                <option value="8">8 semaines</option>
+                <option value="12">3 mois</option>
+                <option value="26">6 mois</option>
+                <option value="52">1 an</option>
+              </select>
+            </label>
+            <button type="button" class="ghost" id="repApply" disabled>Appliquer</button>
+          </div>
+        </fieldset>
+
+        <div class="series" id="seriesBox" hidden>
+          <p>Bloc répété : <b id="seriesCount">0</b> occurrences, jusqu'au <b id="seriesLast">—</b>.</p>
+          <div class="srow">
+            <button type="button" id="seriesSync">Aligner la série</button>
+            <button type="button" id="seriesDetach">Détacher ce bloc</button>
+            <button type="button" id="seriesDel" class="danger">Supprimer toute la série</button>
+          </div>
+        </div>
+
+        <label class="check">
+          <input id="fDone" type="checkbox" disabled>
+          <span>Terminé</span>
+        </label>
+      </div>
+
+      <div class="actions">
+        <button id="btnDup" disabled title="Dupliquer (Ctrl+D)">Dupliquer</button>
+        <button id="btnTpl" disabled title="Enregistrer comme modèle">Modèle</button>
+        <button id="btnDel" class="danger" disabled title="Supprimer (Suppr)">Supprimer</button>
+      </div>
+    </div>
+    <p class="hint" id="inspHint">Sélectionnez un bloc, ou glissez sur la grille pour en créer un.</p>
+  </aside>
+</main>
+
+<div class="sheet-scrim" id="sheetScrim" hidden></div>
+<button type="button" class="fab" id="fab" aria-label="Ajouter un bloc d'une heure au prochain créneau libre" title="Ajouter un bloc">+</button>
+
+<!-- ————— Barre d'état ————— -->
+<footer class="statusbar">
+  <span id="status">Prêt</span>
+  <span class="keys">
+    <kbd>Glisser</kbd> créer · <kbd>↑↓</kbd> déplacer · <kbd>⇧↑↓</kbd> durée · <kbd>Suppr</kbd> supprimer ·
+    <kbd>Ctrl</kbd>+<kbd>Z</kbd> annuler · <kbd>?</kbd> aide
+  </span>
+  <span id="net" class="net">•</span>
+</footer>
+
+<!-- ————— Menu ————— -->
+<div class="sheet" id="menu" hidden role="menu" aria-label="Menu">
+  <button role="menuitem" data-act="sync">Synchronisation GitHub…</button>
+  <button role="menuitem" data-act="send">Envoyer vers l'iPhone…</button>
+  <button role="menuitem" data-act="export">Exporter (.json)</button>
+  <button role="menuitem" data-act="import">Importer (.json)</button>
+  <button role="menuitem" data-act="ics">Exporter la journée (.ics)</button>
+  <button role="menuitem" data-act="print">Imprimer la journée</button>
+  <button role="menuitem" data-act="copyday">Copier la journée vers…</button>
+  <button role="menuitem" data-act="settings">Réglages d'affichage</button>
+  <button role="menuitem" data-act="help">Raccourcis clavier</button>
+  <button role="menuitem" data-act="clear" class="danger">Vider la journée</button>
+</div>
+
+<!-- ————— Dialogues ————— -->
+<dialog id="dlgSettings">
+  <form method="dialog">
+    <h3>Réglages d'affichage</h3>
+    <div class="row2">
+      <label class="field"><span>Début de journée</span><input id="sStart" type="number" min="0" max="22" step="1"></label>
+      <label class="field"><span>Fin de journée</span><input id="sEnd" type="number" min="2" max="24" step="1"></label>
+    </div>
+    <label class="field"><span>Pas d'accrochage</span>
+      <select id="sSnap">
+        <option value="5">5 minutes</option>
+        <option value="10">10 minutes</option>
+        <option value="15">15 minutes</option>
+        <option value="30">30 minutes</option>
+      </select>
+    </label>
+    <label class="check"><input id="sDense" type="checkbox"><span>Afficher les demi-heures</span></label>
+    <menu><button value="ok">Fermer</button></menu>
+  </form>
+</dialog>
+
+<dialog id="dlgHelp">
+  <form method="dialog">
+    <h3>Raccourcis clavier</h3>
+    <dl class="help" id="helpList"></dl>
+    <menu><button value="ok">Fermer</button></menu>
+  </form>
+</dialog>
+
+<dialog id="dlgSend">
+  <h3>Envoyer vers l'iPhone</h3>
+  <p>Un fichier <b>.ics</b> est produit à partir des blocs choisis et placé tel quel dans le corps
+     du message. Les identifiants d'événement sont stables : un renvoi met à jour les entrées déjà
+     importées sur l'iPhone au lieu de les dupliquer.</p>
+
+  <label class="field"><span>Adresse de destination</span>
+    <input id="mTo" type="email" placeholder="moi@icloud.com" autocomplete="email">
+  </label>
+
+  <div class="row2">
+    <label class="sub"><span>Période</span>
+      <select id="mRange">
+        <option value="day">Jour affiché</option>
+        <option value="week" selected>Semaine en cours</option>
+        <option value="4w">4 semaines à venir</option>
+        <option value="all">Tout le calendrier</option>
+      </select>
+    </label>
+    <label class="sub"><span>Objet du message</span>
+      <input id="mSubject" type="text" placeholder="Cadran — mise à jour">
+    </label>
+  </div>
+
+  <p>Sur iPhone, l'automatisation Raccourcis lit le corps du courriel, l'enregistre en
+     <code>cadran.ics</code> puis l'ajoute au calendrier — aucun hébergement n'est nécessaire.</p>
+
+  <menu>
+    <button type="button" class="quiet" id="mCopy">Copier le .ics</button>
+    <button type="button" class="quiet" id="mDownload">Télécharger</button>
+    <button type="button" class="quiet" id="mShare">Partager…</button>
+    <button type="button" id="mMail">Ouvrir le brouillon mail</button>
+  </menu>
+  <menu><button type="button" class="quiet" id="mClose">Fermer</button></menu>
+</dialog>
+
+<dialog id="dlgSync">
+  <h3>Synchronisation GitHub</h3>
+  <p>Le dépôt devient le coffre-fort central de l'emploi du temps : chaque appareil garde une copie
+     locale et la synchronise avec <code>data/schedule.json</code> dans le dépôt indiqué.</p>
+
+  <div class="row2">
+    <label class="field"><span>Propriétaire</span><input id="gOwner" type="text" placeholder="mon-compte"></label>
+    <label class="field"><span>Dépôt</span><input id="gRepo" type="text" placeholder="mon-emploi-du-temps"></label>
+  </div>
+  <div class="row2">
+    <label class="sub"><span>Branche</span><input id="gBranch" type="text" placeholder="main"></label>
+    <label class="sub"><span>Chemin du fichier</span><input id="gPath" type="text" placeholder="data/schedule.json"></label>
+  </div>
+  <label class="field"><span>Jeton d'accès personnel (fine-grained)</span>
+    <input id="gToken" type="password" placeholder="github_pat_…" autocomplete="off">
+  </label>
+  <p>Créez le jeton sur <b>github.com → Settings → Developer settings → Fine-grained tokens</b>,
+     limité au dépôt ci-dessus, avec la permission <b>Contents : Read and write</b> uniquement.
+     Il est conservé uniquement dans le navigateur de cet appareil (jamais dans l'export .json,
+     jamais transmis ailleurs qu'à <code>api.github.com</code>).</p>
+
+  <label class="check"><input id="gAuto" type="checkbox"><span>Synchronisation automatique</span></label>
+  <p id="syncStatusMsg">Non configuré.</p>
+
+  <menu>
+    <button type="button" class="quiet" id="gTest">Tester la connexion</button>
+    <button type="button" id="gSyncNow">Synchroniser maintenant</button>
+  </menu>
+  <menu><button type="button" class="quiet" id="gClose">Fermer</button></menu>
+</dialog>
+
+<dialog id="dlgConflict">
+  <h3>Conflit de synchronisation</h3>
+  <p id="conflictMsg"></p>
+  <menu>
+    <button type="button" class="quiet" id="cfReload">Recharger depuis GitHub</button>
+    <button type="button" class="danger" id="cfForce">Forcer l'envoi (écrase le distant)</button>
+  </menu>
+  <menu><button type="button" class="quiet" id="cfCancel">Plus tard</button></menu>
+</dialog>
+
+<dialog id="dlgSeries">
+  <h3>Bloc répété</h3>
+  <p id="seriesMsg"></p>
+  <menu>
+    <button type="button" class="quiet" id="delCancel">Annuler</button>
+    <button type="button" class="quiet" id="delOne">Ce bloc seul</button>
+    <button type="button" class="danger" id="delAll">Toute la série</button>
+  </menu>
+</dialog>
+
+<input type="file" id="filePick" accept="application/json" hidden>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>
